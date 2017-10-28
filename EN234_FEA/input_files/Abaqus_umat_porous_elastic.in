@@ -74,7 +74,7 @@
         END HISTORY
 
         HISTORY, dload_history
-          0.d0, 20.d0
+          0.d0, 0.d0                 % at first, this is 20, however it only works when it is 0
          10.d0, 20.d0
         END HISTORY
 
@@ -174,11 +174,12 @@
          END PRINT STATE
 
 %        The lines below are just examples - no code exists to use them.
-%          USER PRINT FILES
+          USER PRINT FILES
 %          List file names to contain the output. Fortran unit numbers are provided to each file in the user subroutine
 %            filename1.dat
 %            filename2.dat
-%          END USER PRINT FILES
+             Output_files\stressvstrain.dat
+          END USER PRINT FILES
 %          USER PRINT PARAMETERS
 %            list of parameters to be passed to the subroutine
 %             1.d0, 6.d0

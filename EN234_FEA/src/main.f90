@@ -51,8 +51,8 @@ program en234fea
 !   outfil = 'output_files/Abaqus_uel_holeplate_3d.out'
    
 !  Tests an ABAQUS format UMAT subroutine (in abaqus_umat_elastic.for) with two 8 noded quadrilateral elements
-!   infil = 'input_files/Abaqus_umat_linear_elastic_3d.in'
-!   outfil = 'Output_files/Abaqus_umat_linear_elastic_3d.out'
+!!   infil = 'input_files/Abaqus_umat_linear_elastic_3d.in'
+!!   outfil = 'Output_files/Abaqus_umat_linear_elastic_3d.out'
 
 !  Tests the UMAT on the hole in a plate problem.
 !   infil = 'input_files/Abaqus_umat_holeplate_3d.in'
@@ -86,14 +86,19 @@ program en234fea
 
 !  HW5  Cantilever beam to test incompatible mode elements
 
-   infil = 'input_files/Abaqus_uel_cantilever.in'
-   outfil = 'Output_files/Abaqus_uel_cantilever.out'
+!   infil = 'input_files/Abaqus_uel_cantilever.in'
+!   outfil = 'Output_files/Abaqus_uel_cantilever.out'
 
 !  HW6  Porous elasticity UMAT
 
-!   infil = 'input_files/Abaqus_umat_porous_elastic.in'
-!   outfil = 'Output_files/Abaqus_umat_porous_elastic.out'
+   infil = 'input_files/Abaqus_umat_porous_elastic.in'
+   outfil = 'Output_files/Abaqus_umat_porous_elastic.out'
+  
+!  the following files are given for references
 
+!    infil = 'input_files/Abaqus_umat_hypoelastic_hm6.in'   
+!    outfil = 'Output_files/Abaqus_umat_hypoelastic_hm6.out'
+  
 !  HW7 Hyperelastic user element
 !   infil = 'input_files/Abaqus_uel_hyperelastic.in'
 !   outfil = 'Output_files/Abaqus_uel_hyperelastic.out'

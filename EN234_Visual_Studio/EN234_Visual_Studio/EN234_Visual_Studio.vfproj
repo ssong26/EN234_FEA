@@ -65,6 +65,7 @@
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_phasefield_fine.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_holeplate_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_hyperelastic2.in"/>
+		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_hypoelastic_hm6.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_Umat_Linear_elastic_2d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_linear_elastic_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_porous_elastic.in"/>
@@ -116,11 +117,14 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_2D.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_linelastic_3d.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_elastic.for"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_hm6.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vuel.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vumat.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\convergencecheck.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\el_linelast_3Dbasic.f90"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\HM6_UMAT.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\new_user_element_stub.f90"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\optional user print file Hm6.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_constraint.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_distributedload.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_element.f90"/>
