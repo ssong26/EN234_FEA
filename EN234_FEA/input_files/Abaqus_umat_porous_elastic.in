@@ -39,7 +39,7 @@
         STATE VARIABLES, 0          % Number of material state variables (if the key is omitted the number of state vars defaults to zero)
         PROPERTIES
 %         The properties are G, Poissons ratio (at zero strain, used to calculate bulk modulus), e0, pt
-         10000.d0, 0.3d0, 0.1, 1000.d0
+         10000.d0, 0.3d0, 0.1d0, 1000.d0
         END PROPERTIES
       END MATERIAL
 %
