@@ -1,9 +1,8 @@
-!
-!    ABAQUS format UEL subroutine
+!    ABAQUS format UEL subroutine_Written by Siyuan_Song in 31-Oct-2017
 !
 !    This file is compatible with both EN234_FEA and ABAQUS/Standard
 !
-!    The example implements a standard fully integrated 3D linear elastic continuum element
+!    The example implements a standard fully integrated 3D linear elastic continuum element, specifically for large deformation
 !
 !    The file also contains the following subrouines:
 !          abq_UEL_3D_integrationpoints           - defines integration ponits for 3D continuum elements
@@ -13,7 +12,7 @@
 !
 !=========================== ABAQUS format user element subroutine ===================
 
-      SUBROUTINE UEL_3D(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
+      SUBROUTINE UEL(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
      1     PROPS,NPROPS,COORDS,MCRD,NNODE,U,DU,V,A,JTYPE,TIME,DTIME,
      2     KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,NPREDF,
      3     LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROP,PERIOD)
@@ -113,26 +112,63 @@
       double precision  ::  dxdxi2(3,2)                       ! Derivative of spatial coord wrt normalized areal coord
     !
       double precision  ::  strain(6)                         ! Strain vector contains [e11, e22, e33, 2e12, 2e13, 2e23]
+      double precision  ::  stress_matrix(3,3)                ! Stress matrix contains nine terms
       double precision  ::  stress(6)                         ! Stress vector contains [s11, s22, s33, s12, s13, s23]
+      double precision  ::  Mmatrix_stress(3,3)               ! Material stress in matrix form
+      double precision  ::  Mvector_stress(6)                 ! Material stress in vector form
       double precision  ::  D(6,6)                            ! stress = D*(strain)  (NOTE FACTOR OF 2 in shear strain)
       double precision  ::  B(6,60)                           ! strain = B*(dof_total)
+      double precision  ::  Bstar(9,60)                       ! this is to store the (partial N/ partial x) in lagrangian coordinates
+      double precision  ::  F(3,3)                            ! F is to restore deplacement gradient
+      double precision  ::  F_inv(3,3)                        ! F_inv is to restore the inverse of displacement gradient
+      double precision  ::  F_det                             ! F_det is to restore the determinate of F
       double precision  ::  dxidx(3,3), determinant           ! Jacobian inverse and determinant
-      double precision  ::  E, xnu, D44, D11, D12             ! Material properties
-
+      double precision  ::  bulk_modulus, miu                 ! Material properties
+      double precision  ::  G11, G22, G33, G44                ! To store g11, g22, g33, g44
+      double precision  ::  G_matrix(6,6)                     ! To store G_matrix of the material properties
+      double precision  ::  Cmatrix(3,3)                      ! Is the right Cauchy-Green Deformation tensor as matrix
+      double precision  ::  Cmatrix_inv(3,3)                  ! To store the inverse of C as matrix
+      double precision  ::  Cmatrix_ave(3,3)                  ! To store the average of C as matrix
+      double precision  ::  Cmatrix_det                       ! To store the determinate of C as matrix
+      double precision  ::  Cvector(6)                        ! Is the right Cauchy-Green Deformation tensor as vector
+      double precision  ::  Cvector_inv(6)                    ! To store the inverse of C as vector
+      double precision  ::  Cvector_ave(6)                    ! To store the inverse of C as vector
+      double precision  ::  Cvector_det                       ! To store the determinate of C as vector
+      double precision  ::  Cvector_star(6)                   ! To store the Cvector with the shear termed doubled
+      double precision  ::  Cvector_ave_star(6)               ! To store the Cvector_ave with the shear termed doubled
+      double precision  ::  C_I(6)                            ! To store [Cvector_ave_star - I]
+      double precision  ::  Q                                 ! To store the temporary term Q
+      double precision  ::  P(6)                            ! To store the temporary term P(3,3)
+      double precision  ::  H(6,9)                            ! To store the temporary term H(6,9)
+      double precision  ::  qmatrix(3,3)                      ! To store the q in matrix form
+      double precision  ::  qvector(9)                        ! To store the q in vector form 
+      double precision  ::  Omega(6,6)                        ! To store the Omega in matrix form
+      double precision  ::  kmatrix(60,60)                   ! To store the little_k in the calculation of geometric stiffness
+      double precision  ::  Ymatrix(60,60)                   ! To store the total geometric stiffness
     !
     !     Example ABAQUS UEL implementing 3D linear elastic elements
-    !     El props are:
+    !     El props are: miu, bulk_modulus, G11, G22, G33, G44
 
-    !     PROPS(1)         Young's modulus
-    !     PROPS(2)         Poisson's ratio
-
+    !     PROPS(1)         miu
+    !     PROPS(2)         bulk_modulus
+    !     PROPS(3)         G11
+    !     PROPS(4)         G22
+    !     PROPS(5)         G33
+    !     PROPS(6)         G44
+      ! =======================================n_points Calculation===============================
+      ! This part is to calculate the number of point in the system
+      
       if (NNODE == 4) n_points = 1               ! Linear tet
       if (NNODE == 10) n_points = 4              ! Quadratic tet
       if (NNODE == 8) n_points = 8               ! Linear Hex
       if (NNODE == 20) n_points = 27             ! Quadratic hex
 
+      ! End calculate the number of point
+      ! =======================================xi, w, Calculation===============================
+      
       call abq_UEL_3D_integrationpoints(n_points, NNODE, xi, w)
 
+      ! =======================================Check the dimensional variable===============================
       if (MLVARX<3*NNODE) then
         write(6,*) ' Error in abaqus UEL '
         write(6,*) ' Variable MLVARX must exceed 3*NNODE'
@@ -140,61 +176,328 @@
         stop
       endif
 
+      ! =======================================Initialize R and K matrix===============================
       RHS(1:MLVARX,1) = 0.d0
       AMATRX(1:NDOFEL,1:NDOFEL) = 0.d0
-
-      D = 0.d0
-      E = PROPS(1)
-      xnu = PROPS(2)
-      d44 = 0.5D0*E/(1+xnu)
-      d11 = (1.D0-xnu)*E/( (1+xnu)*(1-2.D0*xnu) )
-      d12 = xnu*E/( (1+xnu)*(1-2.D0*xnu) )
-      D(1:3,1:3) = d12
-      D(1,1) = d11
-      D(2,2) = d11
-      D(3,3) = d11
-      D(4,4) = d44
-      D(5,5) = d44
-      D(6,6) = d44
-
+      miu = PROPS(1)
+      bulk_modulus = PROPS(2)
+      G11 = PROPS(3)
+      G22 = PROPS(4)
+      G33 = PROPS(5)
+      G44 = PROPS(6)
+      
+      ! The G_matrix should be stored here
+      G_matrix(1:6,1:6) = 0.d0
+      G_matrix(1,1) = G11
+      G_matrix(2,2) = G22
+      G_matrix(3,3) = G33
+      G_matrix(4,4) = G44
+      G_matrix(5,5) = G44
+      G_matrix(6,6) = G44
+      
+      ! =======================================Initialize Energy matrix===============================
       ENERGY(1:8) = 0.d0
+      
+      ! =================================================================================================
+      ! =======================================Main Part to Obtain R and K===============================
 
     !     --  Loop over integration points
       do kint = 1, n_points
+          
+        ! ============================To obtain dNdxi, dxdxi, dxidx and dNdx============================== 
         call abq_UEL_3D_shapefunctions(xi(1:3,kint),NNODE,N,dNdxi)
         dxdxi = matmul(coords(1:3,1:NNODE),dNdxi(1:NNODE,1:3))
         call abq_UEL_invert3d(dxdxi,dxidx,determinant)
         dNdx(1:NNODE,1:3) = matmul(dNdxi(1:NNODE,1:3),dxidx)
-        B = 0.d0
-        B(1,1:3*NNODE-2:3) = dNdx(1:NNODE,1)
-        B(2,2:3*NNODE-1:3) = dNdx(1:NNODE,2)
-        B(3,3:3*NNODE:3)   = dNdx(1:NNODE,3)
-        B(4,1:3*NNODE-2:3) = dNdx(1:NNODE,2)
-        B(4,2:3*NNODE-1:3) = dNdx(1:NNODE,1)
-        B(5,1:3*NNODE-2:3) = dNdx(1:NNODE,3)
-        B(5,3:3*NNODE:3)   = dNdx(1:NNODE,1)
-        B(6,2:3*NNODE-1:3) = dNdx(1:NNODE,3)
-        B(6,3:3*NNODE:3)   = dNdx(1:NNODE,2)
+        
+        ! ============================Bstar calculation==============================
+        ! This part is to calculate Bstar
+        
+        Bstar = 0.d0
+        
+        Bstar(1,1:3*NNODE-2:3) = dNdx(1:NNODE,1)
+        Bstar(2,2:3*NNODE-1:3) = dNdx(1:NNODE,2)
+        Bstar(3,3:3*NNODE:3)   = dNdx(1:NNODE,3)
+        Bstar(4,1:3*NNODE-2:3) = dNdx(1:NNODE,2)
+        Bstar(5,2:3*NNODE-1:3) = dNdx(1:NNODE,1)
+        Bstar(6,1:3*NNODE-2:3) = dNdx(1:NNODE,3)
+        Bstar(7,3:3*NNODE:3)   = dNdx(1:NNODE,1)
+        Bstar(8,2:3*NNODE-1:3) = dNdx(1:NNODE,3)
+        Bstar(9,3:3*NNODE:3)   = dNdx(1:NNODE,2)       
+        
+        ! End Calculate Bstar
+        ! ===========================F calculation=================================
+        ! This part is to calculate F
+        
+        F(1:3,1:3) = 0.d0
+        F_inv(1:3,1:3) = 0.d0
+        F_det = 0.d0
+        
+        do i = 1,3
+            do j = 1,3
+                F(i,j) = dot_product(dNdx(1:NNODE,j),
+     1          U(i:(3*NNODE-3+i):3))
+            end do
+        end do
+        F(1,1) = F(1,1) + 1.d0
+        F(2,2) = F(2,2) + 1.d0
+        F(3,3) = F(3,3) + 1.d0
+        call abq_UEL_invert3d(F(1:3,1:3),F_inv(1:3,1:3),F_det)
+        
+        ! End Calculate F
+        ! ===========================Cauchy Green tensor calculation=================================
 
-        strain = matmul(B(1:6,1:3*NNODE),U(1:3*NNODE))
+        ! Calculate the Right Cauchy Green tensor Cmatrix
+        Cmatrix(1:3,1:3) = 0.d0
+        Cmatrix_inv(1:3,1:3) = 0.d0
+        Cmatrix_ave(1:3,1:3) = 0.d0
+        Cmatrix_det = 0.d0
+        
+        Cmatrix(1:3,1:3) = matmul(transpose(F),F)
+        call abq_UEL_invert3d(Cmatrix(1:3,1:3),
+     1   Cmatrix_inv(1:3,1:3),Cmatrix_det)
+        Cmatrix_ave(1:3,1:3) = Cmatrix(1:3,1:3)/(F_det**(2.d0/3.d0))
+        
+        ! Calculate the Right Cauchy Green tensor Cvector
+        Cvector(1:6) = 0.d0
+        Cvector_inv(1:6) = 0.d0
+        Cvector_ave(1:6) = 0.d0
+        Cvector_det = 0.d0
+        
+        Cvector(1) = Cmatrix(1,1)
+        Cvector(2) = Cmatrix(2,2)
+        Cvector(3) = Cmatrix(3,3)
+        Cvector(4) = Cmatrix(1,2)
+        Cvector(5) = Cmatrix(1,3)
+        Cvector(6) = Cmatrix(2,3)
+        
+        Cvector_inv(1) = Cmatrix_inv(1,1)
+        Cvector_inv(2) = Cmatrix_inv(2,2)
+        Cvector_inv(3) = Cmatrix_inv(3,3)
+        Cvector_inv(4) = Cmatrix_inv(1,2)
+        Cvector_inv(5) = Cmatrix_inv(1,3)
+        Cvector_inv(6) = Cmatrix_inv(2,3)    
+        
+        Cvector_ave(1:6) = Cvector(1:6)/(F_det**(2.d0/3.d0))
+        
+        Cvector_det = Cmatrix_det
+        
+        ! Calculate the Right Cauchy Green tensor Cvector_star
+        Cvector_star(1:6) = 0.d0
+        Cvector_ave_star(1:6) = 0.d0
+        
+        Cvector_star(1) = Cmatrix(1,1)
+        Cvector_star(2) = Cmatrix(2,2)
+        Cvector_star(3) = Cmatrix(3,3)
+        Cvector_star(4) = Cmatrix(1,2)*2.d0
+        Cvector_star(5) = Cmatrix(1,3)*2.d0
+        Cvector_star(6) = Cmatrix(2,3)*2.d0
+        
+        Cvector_ave_star(1:6) = Cvector_star(1:6)/(F_det**(2.d0/3.d0))
+        
+        ! Calculate a special term C_I which calculate Cvector_ave_star - I
+        C_I(1:6) = 0.d0
+        C_I(1:6) = Cvector_ave_star(1:6)
+        C_I(1:3) = C_I(1:3) - 1.d0 
 
-        stress = matmul(D,strain)
-        RHS(1:3*NNODE,1) = RHS(1:3*NNODE,1)
-     1   - matmul(transpose(B(1:6,1:3*NNODE)),stress(1:6))*
-     2                                          w(kint)*determinant
+        ! End calculate Right Cauchy Green tensor
+        ! ===========================P and Q calculation=================================
+        
+        ! Calculate the temporary term P
+        P = 0.d0
+        P = 1.d0/2.d0/(F_det**(2.d0/3.d0))*
+     1  (matmul(G_matrix,C_I)-1.d0/3.d0*
+     2  dot_product(Cvector_star,matmul(G_matrix,C_I))*Cvector_inv) 
+        
+        ! Calculate the temporary term Q
+        Q = 0.d0
+        Q = 1.d0/4.d0*dot_product(C_I,matmul(G_matrix,C_I))
 
+        ! End calculate P and Q
+        ! ===========================Material Stress calculation=================================
+        
+        ! Calculate the material stress
+        Mvector_stress = 0.d0
+        Mvector_stress = miu*exp(Q)*P+
+     1  bulk_modulus*F_det*(F_det-1)*Cvector_inv
+        
+        Mmatrix_stress = 0.d0
+        Mmatrix_stress(1,1) = Mvector_stress(1)
+        Mmatrix_stress(2,2) = Mvector_stress(2)
+        Mmatrix_stress(3,3) = Mvector_stress(3)
+        Mmatrix_stress(1,2) = Mvector_stress(4)
+        Mmatrix_stress(1,3) = Mvector_stress(5)
+        Mmatrix_stress(2,3) = Mvector_stress(6)
+        Mmatrix_stress(2,1) = Mvector_stress(4)
+        Mmatrix_stress(3,1) = Mvector_stress(5)
+        Mmatrix_stress(3,2) = Mvector_stress(6)
+
+        ! End calculate Material Stress
+        ! ===========================qmatrix and q vector calculation=================================
+        
+        ! Calculate the qmatrix and qvector
+        qmatrix = 0.d0
+        qvector = 0.d0
+        
+        qmatrix = matmul(Mmatrix_stress,transpose(F))
+        qvector(1) = qmatrix(1,1)
+        qvector(2) = qmatrix(2,2)
+        qvector(3) = qmatrix(3,3)
+        qvector(4) = qmatrix(2,1)
+        qvector(5) = qmatrix(1,2)
+        qvector(6) = qmatrix(3,1)
+        qvector(7) = qmatrix(1,3)
+        qvector(8) = qmatrix(3,2)
+        qvector(9) = qmatrix(2,3)
+
+        ! End Calculate qvector
+        ! ===========================Omega calculation=================================        
+        ! Calculate the Omega
+        Omega = 0.d0
+        Omega(1,1) = Cmatrix_inv(1,1)*Cmatrix_inv(1,1)
+        Omega(1,2) = Cmatrix_inv(1,2)*Cmatrix_inv(1,2)
+        Omega(1,3) = Cmatrix_inv(1,3)*Cmatrix_inv(1,3)
+        Omega(1,4) = Cmatrix_inv(1,1)*Cmatrix_inv(1,2)
+        Omega(1,5) = Cmatrix_inv(1,1)*Cmatrix_inv(1,3)
+        Omega(1,6) = Cmatrix_inv(1,2)*Cmatrix_inv(1,3)
+        Omega(2,2) = Cmatrix_inv(2,2)*Cmatrix_inv(2,2)
+        Omega(2,3) = Cmatrix_inv(2,3)*Cmatrix_inv(2,3)
+        Omega(2,4) = Cmatrix_inv(2,1)*Cmatrix_inv(2,2)
+        Omega(2,5) = Cmatrix_inv(2,1)*Cmatrix_inv(2,3)
+        Omega(2,6) = Cmatrix_inv(2,2)*Cmatrix_inv(2,3)
+        Omega(3,3) = Cmatrix_inv(3,3)*Cmatrix_inv(3,3)
+        Omega(3,4) = Cmatrix_inv(3,1)*Cmatrix_inv(3,2)
+        Omega(3,5) = Cmatrix_inv(3,1)*Cmatrix_inv(3,3)
+        Omega(3,6) = Cmatrix_inv(3,2)*Cmatrix_inv(3,3)
+        Omega(4,4) = (Cmatrix_inv(1,1)*Cmatrix_inv(2,2)+
+     1  Cmatrix_inv(1,2)*Cmatrix_inv(1,2))/2.d0
+        Omega(4,5) = (Cmatrix_inv(1,1)*Cmatrix_inv(2,3)+
+     1  Cmatrix_inv(1,3)*Cmatrix_inv(1,2))/2.d0
+        Omega(4,6) = (Cmatrix_inv(1,2)*Cmatrix_inv(2,3)+
+     1  Cmatrix_inv(1,3)*Cmatrix_inv(2,2))/2.d0
+        Omega(5,5) = (Cmatrix_inv(1,1)*Cmatrix_inv(3,3)+
+     1  Cmatrix_inv(1,3)*Cmatrix_inv(1,3))/2.d0
+        Omega(5,6) = (Cmatrix_inv(1,2)*Cmatrix_inv(3,3)+
+     1  Cmatrix_inv(1,3)*Cmatrix_inv(2,3))/2.d0
+        Omega(6,6) = (Cmatrix_inv(2,2)*Cmatrix_inv(3,3)+
+     1  Cmatrix_inv(2,3)*Cmatrix_inv(2,3))/2.d0
+        
+        ! End Calculate Omega 
+        ! ===========================D_matrix calculation=================================   
+        ! Calculate the D_matrix
+        D = miu*exp(Q)*1.d0/(F_det**(4.d0/3.d0))*(
+     1  G_matrix-1.d0/3.d0*(
+     2  matmul(G_matrix,(spread(Cvector_star,dim=2,ncopies=6)*
+     3  spread(Cvector_inv,dim=1,ncopies=6)))+
+     4  spread(Cvector_inv,dim=2,ncopies=6)*
+     5  spread(matmul(G_matrix,Cvector_star),dim=1,ncopies=6))
+     6  -1.d0/3.d0*(F_det**(2.d0/3.d0))*
+     7  dot_product(Cvector_star,matmul(G_matrix,C_I))*Omega+
+     8  1.d0/9.d0*dot_product(Cvector_star,matmul(G_matrix,Cvector_star
+     9  ))*spread(Cvector_inv,dim=2,ncopies=6)*
+     1  spread(Cvector_inv,dim=1,ncopies=6))
+        D = D+miu*exp(Q)*(2.d0*spread(P,dim=2,ncopies=6)*
+     1  spread((P-1.d0/3.d0*Cvector_inv),dim=1,ncopies=6)-
+     2  1.d0/3.d0/(F_det**(2.d0/3.d0))*
+     3  spread(Cvector_inv,dim=2,ncopies=6)*
+     4  spread((matmul(G_matrix,C_I)),dim=1,ncopies=6))
+        D = D+bulk_modulus*F_det*(
+     1  (2.d0*F_det-1.d0)*spread(Cvector_inv,dim=2,ncopies=6)*
+     2  spread(Cvector_inv,dim=1,ncopies=6)+2.d0*(F_det-1.d0)*Omega)
+        
+        ! End Calculate the D_matrix
+        ! ===========================D_matrix calculation=================================   
+        ! Calculate H matrix
+        H = 0.d0
+        H(1,1) = F(1,1)
+        H(1,5) = F(2,1)
+        H(1,7) = F(3,1)
+        H(2,2) = F(2,2)
+        H(2,4) = F(1,2)
+        H(2,9) = F(3,2)
+        H(3,3) = F(3,3)
+        H(3,6) = F(1,3)
+        H(3,8) = F(2,3)
+        H(4,1) = F(1,2)
+        H(4,2) = F(2,1)
+        H(4,4) = F(1,1)
+        H(4,5) = F(2,2)
+        H(4,7) = F(3,2)
+        H(4,9) = F(3,1)
+        H(5,1) = F(1,3)
+        H(5,3) = F(3,1)
+        H(5,5) = F(2,3)
+        H(5,6) = F(1,1)
+        H(5,7) = F(3,3)
+        H(5,8) = F(2,1)
+        H(6,2) = F(2,3)
+        H(6,3) = F(3,2)
+        H(6,4) = F(1,3)
+        H(6,6) = F(1,2)
+        H(6,8) = F(2,2)
+        H(6,9) = F(3,3)
+        
+        ! End calculate H matrix
+        ! ===========================Y_matrix calculation=================================
+        ! Calculate kmatrix first
+        kmatrix = 0.d0
+        kmatrix(1:NNODE,1:NNODE) = matmul(matmul(dNdx(1:NNODE,1:3),
+     1  Mmatrix_stress(1:3,1:3)),transpose(dNdx(1:NNODE,1:3)))
+        
+        ! Calculate the Ymatrix as following
+        Ymatrix = 0.d0
+        do i = 1,NNODE
+            do j = 1,NNODE
+                Ymatrix(3*i-2,3*j-2) = kmatrix(i,j)
+                Ymatrix(3*i-1,3*j-1) = kmatrix(i,j)
+                Ymatrix(3*i-0,3*j-0) = kmatrix(i,j)
+            end do
+        end do
+        
+        ! End calculate Ymatrix 
+        ! ===========================Residual Calculation=================================
+        ! Calculate the Residual
+        RHS(1:3*NNODE,1) = RHS(1:3*NNODE,1)-
+     1   matmul(transpose(Bstar(1:9,1:3*NNODE)),qvector(1:9))*
+     2  w(kint)*determinant
+        
+        ! End Calculate the Residual
+        ! ===========================Stiffness Calculation=================================    
+        !Calculate the Stiffness
         AMATRX(1:3*NNODE,1:3*NNODE) = AMATRX(1:3*NNODE,1:3*NNODE)
-     1  + matmul(transpose(B(1:6,1:3*NNODE)),matmul(D,B(1:6,1:3*NNODE)))
-     2                                             *w(kint)*determinant
-
+     1  + (matmul(matmul(matmul(matmul(transpose(Bstar(1:9,1:3*NNODE))
+     2  ,transpose(H)),D),H),Bstar(1:9,1:3*NNODE))+
+     3  Ymatrix(1:3*NNODE,1:3*NNODE))*w(kint)*determinant
+        
+        ! End Calculate the Stiffness
+        ! ===========================Cauchy stress calculation=================================
+        ! This part is to calculate Cauchy stress
+        stress_matrix = 0.d0
+        stress = 0.d0
+        stress_matrix = matmul(matmul(F,Mmatrix_stress),
+     1  transpose(F))/F_det
+        
+        stress(1) = stress_matrix(1,1)
+        stress(2) = stress_matrix(2,2)
+        stress(3) = stress_matrix(3,3)
+        stress(4) = stress_matrix(1,2)
+        stress(5) = stress_matrix(1,3)
+        stress(6) = stress_matrix(2,3)
+        
+        ! End calculate Cauchy stress
+        ! ===========================Energy Calculation calculation=================================        
         ENERGY(2) = ENERGY(2)
-     1   + 0.5D0*dot_product(stress,strain)*w(kint)*determinant   ! Store the elastic strain energy
-
+     1  +(miu/2.d0*(exp(Q)-1)+bulk_modulus/2.d0*((F_det-1.d0)**2))
+     2  *w(kint)*determinant   ! Store the elastic strain energy        
+        
+        ! ===========================Stress Storing================================= 
         if (NSVARS>=n_points*6) then   ! Store stress at each integration point (if space was allocated to do so)
             SVARS(6*kint-5:6*kint) = stress(1:6)
         endif
       end do
-
+      
+    ! ===========================All parts finished=================================
+    ! ===========================I hope every thing runs well=================================
 
       PNEWDT = 1.d0          ! This leaves the timestep unchanged (ABAQUS will use its own algorithm to determine DTIME)
     !
@@ -232,15 +535,14 @@
             do i = 1,nfacenodes
                 ipoin = 3*face_node_list(i)-2
                 RHS(ipoin:ipoin+2,1) = RHS(ipoin:ipoin+2,1)
-     1                 - N2(1:nfacenodes)*adlmag(j,1)*norm(1:3)*w(kint)      ! Note determinant is already in normal
+     1                 - N2(1:nfacenodes)*adlmag(j,1)*norm(1:3)*w(kint)! Note determinant is already in normal
             end do
         end do
       end do
 
       return
 
-      END SUBROUTINE UEL_3D
-
+      END SUBROUTINE UEL
 
       subroutine abq_UEL_3D_integrationpoints(n_points, n_nodes, xi, w)
 
@@ -364,7 +666,6 @@
       return
 
       end subroutine abq_UEL_3D_integrationpoints
-
 
       subroutine abq_UEL_3D_shapefunctions(xi,n_nodes,f,df)
 
@@ -568,9 +869,6 @@
 
       end subroutine abq_UEL_3D_shapefunctions
 
-
-
-
       subroutine abq_UEL_invert3d(A,A_inverse,determinant)
 
       double precision, intent(in) :: A(3,3)
@@ -668,5 +966,3 @@
       endif
 
       end subroutine abq_facenodes_3D
-
-

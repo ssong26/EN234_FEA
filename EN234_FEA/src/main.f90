@@ -91,22 +91,26 @@ program en234fea
 
 !  HW6  Porous elasticity UMAT
 
-   infil = 'input_files/Abaqus_umat_porous_elastic.in'
-   outfil = 'Output_files/Abaqus_umat_porous_elastic.out'
+!   infil = 'input_files/Abaqus_umat_porous_elastic.in'
+!   outfil = 'Output_files/Abaqus_umat_porous_elastic.out'
   
 !  the following files are given for references
-
+!
 !    infil = 'input_files/Abaqus_umat_hypoelastic_hm6.in'   
 !    outfil = 'Output_files/Abaqus_umat_hypoelastic_hm6.out'
   
 !  HW7 Hyperelastic user element
-!   infil = 'input_files/Abaqus_uel_hyperelastic.in'
-!   outfil = 'Output_files/Abaqus_uel_hyperelastic.out'
+   infil = 'input_files/Abaqus_uel_hyperelastic.in'
+   outfil = 'Output_files/Abaqus_uel_hyperelastic.out'
 
 !   Hyperelastic umat
 !  infil = 'input_files/Abaqus_umat_hyperelastic2.in'
 !  outfil = 'Output_files/Abaqus_umat_hyperelastic.out'
 
+!   Example uel of neohookie
+!  infil = 'input_files/Abaqus_uel_neohooke_hm7_exp.in'
+!  outfil = 'Output_files/Abaqus_uel_neohooke_hm7_exp.out'
+  
 !   HW8 - phase field modeling with elasticity
 !   Single element test
 !   infil = 'input_files/Abaqus_uel_phasefield_1el.in'

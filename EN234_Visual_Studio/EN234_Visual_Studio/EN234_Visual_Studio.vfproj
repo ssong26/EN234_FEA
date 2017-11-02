@@ -60,6 +60,7 @@
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_hyperelastic.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_linear_elastic_2d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_linear_elastic_3d.in"/>
+		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_neohooke_hm7_exp.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_phasefield_1el.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_phasefield_coarse.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_phasefield_fine.in"/>
@@ -115,7 +116,8 @@
 		<Filter Name="Source">
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_tecplot_interface.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_2D.for"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_linelastic_3d.for"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_hyperelastic_hm7_final.for"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_neohooke_hm7_exp.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_elastic.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_hm6.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vuel.for"/>

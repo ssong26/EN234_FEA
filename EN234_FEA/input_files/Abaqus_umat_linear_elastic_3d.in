@@ -173,7 +173,6 @@
             DISPLACEMENT SCALE FACTOR, 1.d0
          END PRINT STATE
 
-
         END STATIC STEP
          
 
