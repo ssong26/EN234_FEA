@@ -60,13 +60,11 @@
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_hyperelastic.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_linear_elastic_2d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_linear_elastic_3d.in"/>
-		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_neohooke_hm7_exp.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_phasefield_1el.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_phasefield_coarse.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_phasefield_fine.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_holeplate_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_hyperelastic2.in"/>
-		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_hypoelastic_hm6.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_Umat_Linear_elastic_2d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_linear_elastic_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_umat_porous_elastic.in"/>
@@ -76,11 +74,7 @@
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vuel_linear_elastic_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vumat_linear_elastic_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vumat_McCormick.in"/></Filter>
-		<Filter Name="Output_Files">
-		<File RelativePath="..\..\EN234_FEA\Output_Files\Abaqus_uel_linear_elastic_2d.out"/>
-		<File RelativePath="..\..\EN234_FEA\Output_Files\Abaqus_uel_linear_elastic_3d.out"/>
-		<File RelativePath="..\..\EN234_FEA\Output_Files\contourplots.dat"/>
-		<File RelativePath="..\..\EN234_FEA\Output_Files\initial_mesh.dat"/></Filter>
+		<Filter Name="Output_Files"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe">
 		<File RelativePath="..\..\EN234_FEA\modules\Bandwidth.f90"/>
 		<File RelativePath="..\..\EN234_FEA\modules\Boundaryconditions.f90"/>
@@ -117,16 +111,13 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_tecplot_interface.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_2D.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_hyperelastic_hm7_final.for"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_neohooke_hm7_exp.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_elastic.for"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_hm6.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vuel.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vumat.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\convergencecheck.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\el_linelast_3Dbasic.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\HM6_UMAT.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\new_user_element_stub.f90"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\optional user print file Hm6.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_constraint.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_distributedload.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_element.f90"/>
