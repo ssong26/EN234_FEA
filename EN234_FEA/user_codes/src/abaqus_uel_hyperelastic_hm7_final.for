@@ -381,6 +381,12 @@
      1  Cmatrix_inv(1,3)*Cmatrix_inv(2,3))/2.d0
         Omega(6,6) = (Cmatrix_inv(2,2)*Cmatrix_inv(3,3)+
      1  Cmatrix_inv(2,3)*Cmatrix_inv(2,3))/2.d0
+        ! Symmetry Property
+        do i=2,6
+            do j=1,(i-1)
+                Omega(i,j)=Omega(j,i)
+            end do
+        end do    
         
         ! End Calculate Omega 
         ! ===========================D_matrix calculation=================================   
