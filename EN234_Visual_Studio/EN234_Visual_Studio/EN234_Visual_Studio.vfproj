@@ -50,6 +50,7 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\vaba_param.inc"/></Filter>
 		<Filter Name="Input_files">
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_beam_1el.in"/>
+		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_Cahn_hilliard_2d_fine_note8.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_cantilever.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_continuum_beam.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_uel_holeplate_2d_quad4.in"/>
@@ -109,8 +110,9 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\modules\Element_Utilities.f90"/></Filter>
 		<Filter Name="Source">
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_tecplot_interface.f90"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_2D.for"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_cahnHilliard_plain_note8.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_hyperelastic_hm7_final.for"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_phase_hm8.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_elastic.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vuel.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vumat.f90"/>
@@ -122,6 +124,7 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_distributedload.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_element.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_initialdof.f90"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_initialdof_note8.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_mesh.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_prescribeddof.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_prescribedforce.f90"/>

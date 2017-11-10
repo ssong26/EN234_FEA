@@ -48,8 +48,8 @@
 %       Define element properties - the values are passed to user subroutine elstif in the order they are listed here
         PROPERTIES
          100.d0, 0.3d0      % E, nu
-         0.0d0, 1.d0, 0.001d0, 1.d0   % Omega, W, kappa, diffusion coefft
-         0.5d0                     % Theta
+         0.00d0, 1.d0, 0.001d0, 1.d0   % Omega = 0, W = 1, kappa = 0.001, diffusion coefft = 1
+         0.5d0                     % Theta = 0.5
         END PROPERTIES
 %     Define element connectivity
 %     The element number (first number in the list) is optional, and is ignored in the code
@@ -118,7 +118,7 @@
 
 %   The CHECK STIFFNESS key tests the element subroutine to ensure that
 %   the residual force vector is consistent with the stiffness
-%       CHECK STIFFNESS, U1
+       CHECK STIFFNESS, U1
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Analysis %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
