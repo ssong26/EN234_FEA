@@ -110,7 +110,6 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\modules\Element_Utilities.f90"/></Filter>
 		<Filter Name="Source">
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_tecplot_interface.f90"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_cahnHilliard_plain_note8.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_hyperelastic_hm7_final.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_phase_hm8.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_elastic.for"/>
@@ -124,7 +123,6 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_distributedload.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_element.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_initialdof.f90"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_initialdof_note8.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_mesh.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_prescribeddof.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_prescribedforce.f90"/>

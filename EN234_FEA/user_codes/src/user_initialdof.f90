@@ -1,4 +1,4 @@
-     subroutine user_initialdof_note8(parameter_list,n_parameters,node_number,coords,n_coords,dof_total,dof_increment,n_dof)
+     subroutine user_initialdof(parameter_list,n_parameters,node_number,coords,n_coords,dof_total,dof_increment,n_dof)
      use Types
      implicit none
      
@@ -28,4 +28,4 @@
          dof_total(4) = 0.5d0 + A*sin(k*coords(1))*sin(k*coords(2))
      endif
      
-     end subroutine user_initialdof_note8
+     end subroutine user_initialdof
