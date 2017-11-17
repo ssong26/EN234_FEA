@@ -3,40 +3,43 @@
 !
 !
 
-     subroutine vumat_official(nblock, ndir, nshr, nstatev, nfieldv, nprops, lanneal, &
-       stepTime, totalTime, dt, cmname, coordMp, charLength, &
-       props, density, strainInc, relSpinInc, &
-       tempOld, stretchOld, defgradOld, fieldOld, &
-       stressOld, stateOld, enerInternOld, enerInelasOld, &
-       tempNew, stretchNew, defgradNew, fieldNew, &
-       stressNew, stateNew, enerInternNew, enerInelasNew )
+      subroutine vumat_example(nblock, ndir, nshr, nstatev, nfieldv, 
+     1  nprops, lanneal, stepTime, totalTime, dt, cmname, coordMp, 
+     2  charLength, props, density, strainInc, relSpinInc, tempOld,
+     3  stretchOld, defgradOld, fieldOld, stressOld, stateOld,
+     4  enerInternOld, enerInelasOld, tempNew, stretchNew,
+     5  defgradNew, fieldNew, stressNew, stateNew,
+     6  enerInternNew, enerInelasNew)
 !
 !      include 'vaba_param.inc'
 !
       implicit double precision (a-h,o-z)
 
-      dimension props(nprops), density(nblock), coordMp(nblock,*), &
-       charLength(nblock), strainInc(nblock,ndir+nshr), &
-       relSpinInc(nblock,nshr), tempOld(nblock), &
-       stretchOld(nblock,ndir+nshr), &
-       defgradOld(nblock,ndir+nshr+nshr), &
-       fieldOld(nblock,nfieldv), stressOld(nblock,ndir+nshr), &
-       stateOld(nblock,nstatev), enerInternOld(nblock), &
-       enerInelasOld(nblock), tempNew(nblock), &
-       stretchNew(nblock,ndir+nshr), &
-       defgradNew(nblock,ndir+nshr+nshr), &
-       fieldNew(nblock,nfieldv), &
-       stressNew(nblock,ndir+nshr), stateNew(nblock,nstatev), &
-       enerInternNew(nblock), enerInelasNew(nblock)
+      dimension props(nprops), density(nblock), coordMp(nblock,*),
+     1  charLength(nblock), strainInc(nblock,ndir+nshr),
+     2  relSpinInc(nblock,nshr), tempOld(nblock),
+     3  stretchOld(nblock,ndir+nshr),
+     4  defgradOld(nblock,ndir+nshr+nshr),
+     5  fieldOld(nblock,nfieldv), stressOld(nblock,ndir+nshr),
+     6  stateOld(nblock,nstatev), enerInternOld(nblock),
+     7  enerInelasOld(nblock), tempNew(nblock),
+     8  stretchNew(nblock,ndir+nshr),
+     9  defgradNew(nblock,ndir+nshr+nshr),
+     1  fieldNew(nblock,nfieldv),
+     2  stressNew(nblock,ndir+nshr), stateNew(nblock,nstatev),
+     3  enerInternNew(nblock), enerInelasNew(nblock)
 
        character*80 cmname
 !
 !      Local variables
 !
-       integer iblock
+       integer k,ntens,nit,maxit
 
-       double precision D(6,6)
-       double precision E,xnu,d11,d12,d44
+       double precision dedev(ndir+nshr),sdevstar(ndir+nshr)
+       double precision sestar,skkstar
+       double precision E,xnu,Y,e0,m,n,edot0
+       double precision f,dfde
+       double precision eplas,deplas
 !
 !      Conventions for storing tensors:
 !
@@ -101,24 +104,88 @@
 !
 !       Coded for 3D problems; small stretch assumption (works approximately for finite rotations)
 !
-        D = 0.d0
-        E = PROPS(1)
-        xnu = PROPS(2)
-        d44 = 0.5D0*E/(1+xnu)
-        d11 = (1.D0-xnu)*E/( (1+xnu)*(1-2.D0*xnu) )
-        d12 = xnu*E/( (1+xnu)*(1-2.D0*xnu) )
-        D(1:3,1:3) = d12
-        D(1,1) = d11
-        D(2,2) = d11
-        D(3,3) = d11
-        D(4,4) = 2.d0*d44    ! Important - shear strain components are not doubled in a VUMAT
-        D(5,5) = 2.d0*d44
-        D(6,6) = 2.d0*d44
+      E = props(1)
+      xnu = props(2)
+      Y = props(3)
+      e0 = props(4)
+      n  = props(5)
+      edot0 = props(6)
+      m = props(7)
 
-        do iblock = 1,nblock
-            stressNew(iblock,1:6) = stressOld(iblock,1:6) + matmul(D,strainInc(iblock,1:6))
-        end do
+      ntens = ndir+nshr
+
+      do k = 1,nblock
+
+        eplas = stateOld(k,1)
+        deplas = stateOld(k,2)
+
+        dedev(1:ndir) = strainInc(k,1:ndir)
+     1                      - sum(strainInc(k,1:ndir))/3.d0
+        dedev(ndir+1:ntens) = strainInc(k,ndir+1:ntens)     !   No factor of 2 in dedev
+        skkstar = sum(stressOld(k,1:ndir))
+     1          + E*sum(strainInc(k,1:ndir))/(1.d0-2.d0*xnu)
+        sdevstar(1:ndir) = stressOld(k,1:ndir)
+     1                   - sum(stressOld(k,1:ndir))/3.d0
+        sdevstar(ndir+1:ntens) = stressOld(k,ndir+1:ntens)
+        sdevstar(1:ntens) = sdevstar(1:ntens)
+     1                    + E*dedev(1:ntens)/(1.d0+xnu)
+      
+        sestar = dsqrt(1.5d0)*
+     1    dsqrt(dot_product(sdevstar(1:ndir),sdevstar(1:ndir)) +
+     2    2.d0*dot_product(sdevstar(ndir+1:ntens),
+     3                     sdevstar(ndir+1:ntens)) )
+
+!     Elastic increment (either no stress, or no plastic strain rate)
+
+        if (sestar/Y<1.d-09.or.edot0==0.d0) then
+           stressNew(k,1:ntens) = sdevstar(1:ntens)
+           stressNew(k,1:ndir) = stressNew(k,1:ndir) + skkstar/3.d0
+           stateNew(k,1) = eplas
+           stateNew(k,2) = 0.d0
+           cycle
+        endif
+
+
+       err = 1.d0
+       maxit = 100
+       nit = 1
+       tol = 1.d-6*Y
+       if (deplas==0.d0) deplas = 1.d-09/Y
+       do while (err>tol)
+
+         c1 = Y*(1.d0 + (eplas + deplas)/e0)**(1.d0/n) *
+     &                                 (deplas/dt/edot0)**(1.d0/m)
+
+         f = sestar - c1 - 1.5d0*E*deplas/(1.d0+xnu)
+         dfde = -c1*( 1.d0/(n*(e0+eplas+deplas)) + 1.d0/(m*deplas) )
+     &                                            - 1.5d0*E/(1.d0+xnu)
+
+         deplas_new = deplas - f/dfde
+         if (deplas_new<0.d0) then
+            deplas = deplas/10.d0
+         else
+            deplas = deplas_new
+         endif
+
+         nit = nit + 1
+         err = dabs(f)
+         if (nit>maxit) then
+            write(6,*) ' Newton iterations in UMAT failed to converge '
+            stop
+         endif
+       end do
+
+        stressNew(k,1:ntens) =
+     1           ( 1.d0 - 1.5d0*deplas*E/(1.d0+xnu)/sestar )
+     2                           *sdevstar(1:ntens)
+        stressNew(k,1:ndir) =
+     1              stressNew(k,1:ndir) + skkstar/3.d0
+
+        stateNew(k,1) = eplas + deplas
+        stateNew(k,2) = deplas
+
+      end do
 
 
 !
-End Subroutine vumat_official
+      End Subroutine vumat_example

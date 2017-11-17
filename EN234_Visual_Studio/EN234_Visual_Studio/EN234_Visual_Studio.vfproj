@@ -74,7 +74,8 @@
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vuel_holeplate_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vuel_linear_elastic_3d.in"/>
 		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vumat_linear_elastic_3d.in"/>
-		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vumat_McCormick.in"/></Filter>
+		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vumat_McCormick.in"/>
+		<File RelativePath="..\..\EN234_FEA\input_files\Abaqus_vumat_viscoplastic.in"/></Filter>
 		<Filter Name="Output_Files"/>
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe">
 		<File RelativePath="..\..\EN234_FEA\modules\Bandwidth.f90"/>
@@ -107,7 +108,6 @@
 		<File RelativePath="..\..\EN234_FEA\src\traction_boundarycondition.f90"/></Filter>
 		<Filter Name="User Codes">
 		<Filter Name="Modules">
-		<File RelativePath="..\..\EN234_FEA\user_codes\modules\Element_Utilities.f90"/></Filter>
 		<Filter Name="Source">
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_tecplot_interface.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_uel_hyperelastic_hm7_final.for"/>
@@ -115,6 +115,8 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_umat_elastic.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vuel.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vumat.f90"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vumat_McCormick.for"/>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\abaqus_vumat_viscoplastic.for"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\convergencecheck.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\el_linelast_3Dbasic.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\HM6_UMAT.for"/>
@@ -126,5 +128,6 @@
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_mesh.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_prescribeddof.f90"/>
 		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_prescribedforce.f90"/>
-		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_print_cahn_hilliard.f90"/></Filter></Filter></Files>
+		<File RelativePath="..\..\EN234_FEA\user_codes\src\user_print_cahn_hilliard.f90"/></Filter>
+		<File RelativePath="..\..\EN234_FEA\user_codes\modules\Element_Utilities.f90"/></Filter></Filter></Files>
 	<Globals/></VisualStudioProject>
