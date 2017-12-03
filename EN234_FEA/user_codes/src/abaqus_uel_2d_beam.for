@@ -3,7 +3,7 @@
 !
 !    This file is compatible with both EN234_FEA and ABAQUS/Standard
 !
-!    The example implements a standard fully integrated 3D linear elastic continuum element
+!    The example implements a standard fully integrated 1D Timosike beam
 !
 !    The file also contains the following subrouines:
 !          abq_UEL_2D_integrationpoints           - defines integration points for 2D continuum elements
@@ -11,7 +11,7 @@
 !          abq_UEL_1D_integrationpoints(n_points, n_nodes, xi, w)  = defines integration points for 1D line integral
 !=========================== ABAQUS format user element subroutine ===================
 
-      SUBROUTINE UEL_hm8(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
+      SUBROUTINE UEL(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
      1     PROPS,NPROPS,COORDS,MCRD,NNODE,U,DU,V,A,JTYPE,TIME,DTIME,
      2     KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,NPREDF,
      3     LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROP,PERIOD)
@@ -93,84 +93,151 @@
     !
     !
     ! Local Variables
-      integer      :: i,j,kint, nfacenodes, ipoin, ksize
-      integer      :: n_points
-      integer      :: n_points_upper, NNODE_upper
-      
+      integer      :: i,j,n_points,kint, nfacenodes
       integer      :: face_node_list(3)                       ! List of nodes on an element face
     !
       double precision  ::  xi(2,9)                          ! Area integration points
-      double precision  ::  w(9)                             ! Area integration weights
+      double precision  ::  w(5)                             ! Area integration weights
       double precision  ::  N(9)                             ! 2D shape functions
       double precision  ::  dNdxi(9,2)                       ! 2D shape function derivatives
       double precision  ::  dNdx(9,2)                        ! Spatial derivatives
       double precision  ::  dxdxi(2,2)                       ! Derivative of spatial coords wrt normalized coords
-      
-      double precision  ::  xi_upper(2,9)                    ! Area integration points for upper N
-      double precision  ::  w_upper(9)                       ! Area integration weights for upper 
-      double precision  ::  N_upper(9)                       ! 2D shape functions for upper N
-      double precision  ::  dNdxi_upper(9,2)                 ! 2D shape functions derivatives for upper N
-      double precision  ::  dNdx_upper(9,2)                  ! Spatial derivatives for upper N
-      double precision  ::  dxdxi_upper(2,2)                 ! Derivative of spatial coords wrth normalized coords for upper N
-      
 
     !   Variables below are for computing integrals over element faces
       double precision  ::  face_coords(2,3)                  ! Coords of nodes on an element face
-      double precision  ::  xi1(6)                            ! 1D integration points
-      double precision  ::  w1(6)                              ! Integration weights
+      double precision  ::  xi1(5)                            ! 1D integration points
+      double precision  ::  w1(5)                             ! Integration weights
       double precision  ::  N1(3)                             ! 1D shape functions
       double precision  ::  dN1dxi(3)                         ! 1D shape function derivatives
       double precision  ::  norm(2)                           ! Normal to an element face
       double precision  ::  dxdxi1(2)                         ! Derivative of 1D spatial coord wrt normalized areal coord
-      double precision  ::  strain(4)                         ! Strain vector contains [e11, e22, e33, 2e12, 2e13, 2e23]
-      double precision  ::  stress(4)                         ! Stress vector contains [s11, s22, s33, s12, s13, s23]
-      double precision  ::  De(3,3)                           ! Elastic part of D[3,3]
-      double precision  ::  Dee(4,4)                          ! Elastic modulus D[4,4]
-      double precision  ::  D(9,9)                            ! The dimension in this problem
-      double precision  ::  dout                              ! To store some constants 
-      double precision  ::  B(9,24)                           ! strain = B*(dof_total)
+      double precision  ::  xi2(2,5)                          ! Integration points in 2D.  
+      double precision  ::  dxdxi2(2)
+    !
+      double precision  ::  strain_star(2)                    ! Strain vector contains [e11, e22, e33, 2e12, 2e13, 2e23]
+      double precision  ::  stress_star(2)                    ! Stress vector contains [s11, s22, s33, s12, s13, s23]
+      double precision  ::  D(2,2)                            ! stress = D*(strain)
+      double precision  ::  B(3,8)                            ! strain = B*(dof_total)
+      double precision  ::  T(8,6)                            ! T matrix
       double precision  ::  dxidx(2,2), determinant           ! Jacobian inverse and determinant
-      double precision  ::  dxidx_upper(2,2), determinant_upper! Jacobian inverse and determinant
-      double precision  ::  E, xnu, omega, w_energy, kappa    ! Material properties 
-      double precision  ::  diff, theta                       ! Material properties
-      double precision  ::  q(9)
-      double precision  ::  sol(9), dsol(9)                   ! Sol vector contains [e11, e22, 2e12, mu, c, dmudx1, dmudx2, dcdx1, dcdx2]
+      double precision  ::  E, xnu                            ! Material properties
+      double precision  ::  G                                 ! Shear modulus
+      double precision  ::  thickness, width                  ! Beam Properties
+      double precision  ::  utemp(22)                         ! Temporary displacement (for incompatible mode elements)
+      double precision  ::  cos_1,sin_1                       ! Cos_1 = cos_theta1, Sin_1 = sin_theta1
+      double precision  ::  cos_2,sin_2                       ! Cos_2 = cos_theta2, Sin_2 = sin_theta2
+      double precision  ::  Length                            ! Store the local length
+      double precision  ::  coord_slave(2,4)                  ! coord_slave is to store the coordinate for the slave points
+      double precision  ::  estar(2,2)                        ! Laminar basis vectors
+      double precision  ::  R(2,3)                            ! Rotation tensor
+      double precision  ::  RBT(2,6)                          ! RBT = matmul(R,B,T)
+      double precision  ::  axial_force                       ! axial force
+      double precision  ::  shear_force                       ! shear force
+      double precision  ::  bending_moment                    ! bending moment
 
-     
-      ! =================================================================================================
-      ! This part is to determine the integration point
+    !
+    !     Example ABAQUS UEL implementing 2D linear elastic elements
+    !     Includes option for incompatible mode elements
+    !     El props are:
+    
+    !     PROPS(1)         thickness
+    !     PROPS(2)         width
+    !     PROPS(3)         Young's modulus
+    !     PROPS(4)         Poisson's ratio
+    !
+      ! ======================================================================================
+      ! =============================Store the Material Properties============================
+      !
+      thickness = PROPS(1)
+      width = PROPS(2)
+      E = PROPS(3)
+      xnu = PROPS(4)
       
-      ! The integration point for N
-      if (NNODE == 3) n_points = 1              ! Linear triangle
-      if (NNODE == 4) n_points = 4               ! Linear rectangle
-      if (NNODE == 6) n_points = 4              ! Quadratic triangle
+      ! ======================================================================================
+      ! =============================Store the Structural Properties==========================
+      !
+      ! The length of the local coordinate
+      Length = sqrt((coords(1,2)-coords(1,1))**2.d0 + ! coords(x1:x3,1:NNODE)
+     1(coords(2,2)-coords(2,1))**2.d0)
       
-      ! for hm8, the NNODE == 8
-      if (NNODE == 8) n_points = 9               ! Serendipity rectangle
+      ! The angular properties.
+      cos_1 = (coords(1,2)-coords(1,1))/Length
+      sin_1 = (coords(2,2)-coords(2,1))/Length
+      cos_2 = (coords(1,2)-coords(1,1))/Length
+      sin_2 = (coords(2,2)-coords(2,1))/Length
       
-      if (NNODE == 9) n_points = 9             ! Quadratic rect
-     
-      n_points = 4 ! for reduced quadratic rect. In home8, we only have 4 integration points. Although NNODE == 8.
+      ! To store the slave coordinate, for calculation in the intergration loop.
+      ! Point 1
+      coord_slave(1,1) = coords(1,1) + thickness/2.d0*sin_1
+      coord_slave(2,1) = coords(2,1) - thickness/2.d0*cos_1
+      ! Point 2
+      coord_slave(1,2) = coords(1,2) + thickness/2.d0*sin_2
+      coord_slave(2,2) = coords(2,2) - thickness/2.d0*cos_2
+      ! Point 3
+      coord_slave(1,3) = coords(1,2) - thickness/2.d0*sin_2
+      coord_slave(2,3) = coords(2,2) + thickness/2.d0*cos_2
+      ! Point 4
+      coord_slave(1,4) = coords(1,1) - thickness/2.d0*sin_1
+      coord_slave(2,4) = coords(2,1) + thickness/2.d0*cos_1
       
-      ! The integration point for N_upper
-      NNODE_upper = 4
-      n_points_upper = 4
-      
-      ! =================================================================================================
-      ! This part is to determine the xi and w. 
-      
-      
-      ! To determine the N
-      ! It worth mention that, here is integration points, for 8-noded reduced integration point, we only have 4 integration points.
-      call abq_UEL_2D_integrationpoints(n_points, NNODE, xi, w)
-      
-      ! To determine the N_upper. I have to say that for 8noded or 4noded, xi = xi_upper, w = w_upper
-      call abq_UEL_2D_integrationpoints(n_points_upper,
-     1 NNODE_upper, xi_upper, w_upper)
+      ! In order to use a 5 points trapozoidal scheme
+      n_points = 5
 
-      ! =================================================================================================
-      ! This part is to provide judgement of the system
+      ! ======================================================================================
+      ! =============================Intergration over all points=============================
       
+      ! Intergration points, we use 5 points trapozoidal scheme 
+      call abq_UEL_1D_integrationpoints(n_points, NNODE, xi1, w) ! xi1 is the local points, w is the weight
+      
+      ! To use the five points in a 2-D condition
+      xi2 = 0.d0
+      xi2(2,1:5) = xi1(1:5)
+      
+      ! Initialize output parameters
+      RHS(1:MLVARX,1) = 0.d0
+      AMATRX(1:NDOFEL,1:NDOFEL) = 0.d0
+      
+      ! Initialize state parameters
+      axial_force = 0.d0
+      shear_force = 0.d0
+      bending_moment = 0.d0
+      
+      ! Initialize D matrix
+      G = E/2.d0/(1+xnu)
+      D = 0.d0
+      D(1,1) = E
+      D(2,2) = G
+      
+      ! Initialize T matrix
+      T = 0.d0
+      
+      T(1,1) = 1.d0
+      T(1,3) = coords(2,1) - coord_slave(2,1)
+      
+      T(2,2) = 1.d0
+      T(2,3) = - (coords(1,1) - coord_slave(1,1))
+      
+      T(3,4) = 1.d0
+      T(3,6) = coords(2,2) - coord_slave(2,2)
+      
+      T(4,5) = 1.d0
+      T(4,6) = coords(1,2) - coord_slave(1,2)
+      
+      T(5,4) = 1.d0
+      T(5,6) = coords(2,2) - coord_slave(2,3)
+      
+      T(6,5) = 1.d0
+      T(6,6) = coords(1,2) - coord_slave(1,3)
+      
+      T(7,1) = 1.d0
+      T(7,3) = coords(2,1) - coord_slave(2,4)
+      
+      T(8,2) = 1.d0
+      T(8,3) = - (coords(1,1) - coord_slave(1,4))
+      
+      ! Initialize energy
+      ENERGY(1:8) = 0.d0
+
       if (MLVARX<2*NNODE) then
         write(6,*) ' Error in abaqus UEL '
         write(6,*) ' Variable MLVARX must exceed 2*NNODE'
@@ -178,224 +245,90 @@
         stop
       endif
       
-      ! =================================================================================================
-      ! initial Residual and Stiffness matrix
-      RHS(1:MLVARX,1) = 0.d0
-      AMATRX(1:NDOFEL,1:NDOFEL) = 0.d0
+      ! Loop over all points
+        do kint = 1, n_points
+            
+            ! Use the four nodes elements to determine B matrix
+            call abq_UEL_2D_shapefunctions(xi2(1:2,kint),4,N,dNdxi)
+            dxdxi = matmul(coord_slave(1:2,1:4),dNdxi(1:4,1:2))
+            
+            call abq_inverse_LU(dxdxi,dxidx,2)
+            dNdx(1:4,1:2) = matmul(dNdxi(1:4,1:2),dxidx)
+            
+            ! Determine B matrix
+            B = 0.d0
+            B(1,1:2*4-1:2) = dNdx(1:4,1)
+            B(2,2:2*4:2)   = dNdx(1:4,2)
+            B(3,1:2*4-1:2) = dNdx(1:4,2)
+            B(3,2:2*4:2)   = dNdx(1:4,1)
+            
+            ! determine estar
+            estar(1:2,1) = dxdxi(1:2,1)/norm2(dxdxi(1:2,1))
+            estar(1:2,2) = dxdxi(1:2,2)/norm2(dxdxi(1:2,2))
+            
+            ! To decide R matrix
+            R = 0.d0
+            
+            R(1,1) = estar(1,1)**2.d0
+            R(1,2) = estar(2,1)**2.d0
+            R(1,3) = estar(1,1)*estar(2,1)
+            
+            R(2,1) = 2*estar(1,1)*estar(1,2)
+            R(2,2) = 2*estar(2,1)*estar(2,2)
+            R(2,3) = estar(1,1)*estar(2,2) + estar(1,2)*estar(2,1)
+            
+            RBT = matmul(matmul(R,B),T)
+            ! To determine strain and stress
+            strain_star = matmul(RBT,U(1:6))
+            stress_star = matmul(D,strain_star)
+            
+            RHS(1:6,1) = RHS(1:6,1)
+     1      - matmul(transpose(RBT),stress_star)*w(kint)*width*Length
+     2      * thickness/2.d0
 
-      ! Basic properties
-      E = PROPS(1)
-      xnu = PROPS(2)
-      omega = PROPS(3)
-      w_energy = PROPS(4)
-      kappa = PROPS(5)
-      diff = PROPS(6)
-      theta = PROPS(7)
-      
-      ! D matrix
-      De = 0.d0
-      dout = E/( (1.d0+xnu)*(1.d0-2.d0*xnu) )
-      De(1,1) = (1.d0-xnu)*dout
-      De(1,2) = xnu*dout
-      De(2,1) = xnu*dout
-      De(2,2) = (1.d0-xnu)*dout
-      De(3,3) = (1.d0-2.D0*xnu)/2.d0*dout
-      
-      Dee = 0.d0
-      Dee(1,1) = (1.d0-xnu)*dout
-      Dee(2,2) = (1.d0-xnu)*dout
-      Dee(3,3) = (1.d0-xnu)*dout
-      Dee(4,4) = (1.d0-2.D0*xnu)/2.d0*dout
-      Dee(1,2) = xnu*dout
-      Dee(1,3) = xnu*dout
-      Dee(2,1) = xnu*dout
-      Dee(2,3) = xnu*dout
-      Dee(3,1) = xnu*dout
-      Dee(3,2) = xnu*dout
-      
-      D = 0.d0
-      D(1:3,1:3) = De(1:3,1:3)
-      D(1,5) = -omega*(Dee(1,1)+Dee(1,2)+Dee(1,3))/3.d0
-      D(2,5) = -omega*(Dee(2,1)+Dee(2,2)+Dee(2,3))/3.d0
-      D(4,1) = -omega*(Dee(1,1)+Dee(2,1)+Dee(3,1))/3.d0
-      D(4,2) = -omega*(Dee(1,2)+Dee(2,2)+Dee(3,2))/3.d0
-      D(4,4) = 1.d0
-      D(4,5) = 0.d0
-      D(5,5) = 1.d0/DTIME
-      D(6,8) = -kappa
-      D(7,9) = -kappa
-      D(8,6) = theta*diff
-      D(9,7) = theta*diff
+            AMATRX(1:6,1:6) = AMATRX(1:6,1:6)
+     1      + matmul(matmul(transpose(RBT),D),RBT)*
+     2      w(kint)*width*Length*thickness/2.d0
 
-      ! initial Energy
-      ENERGY(1:8) = 0.d0
-
-      !     --  Loop over integration points
-      do kint = 1, n_points          
-        ! decide determint
-        call abq_UEL_2D_shapefunctions(xi(1:2,kint),NNODE,N,dNdxi)
-        dxdxi = matmul(coords(1:2,1:NNODE),dNdxi(1:NNODE,1:2))
-        call abq_inverse_LU(dxdxi,dxidx,2)
-        dNdx(1:NNODE,1:2) = matmul(dNdxi(1:NNODE,1:2),dxidx)
-        determinant=dxdxi(1,1)*dxdxi(2,2)-dxdxi(1,2)*dxdxi(2,1)
+            ! Store state variables
+            axial_force = axial_force
+     1      + stress_star(1)*w(kint)*width*thickness/2.d0
+            
+            shear_force = shear_force
+     1      + stress_star(2)*w(kint)*width*thickness/2.d0
+            
+            bending_moment = bending_moment
+     1      + xi2(2,kint)*stress_star(1)*w(kint)*width*thickness**2.d0
+     2      /4.d0
+        end do
         
-        ! decide determint_upper, the former four points
-        call abq_UEL_2D_shapefunctions(xi_upper(1:2,kint),
-     1  NNODE_upper,N_upper,dNdxi_upper)
-        dxdxi_upper = matmul(coords(1:2,1:NNODE_upper),
-     1  dNdxi_upper(1:NNODE_upper,1:2))
-        call abq_inverse_LU(dxdxi_upper,dxidx_upper,2)
-        dNdx_upper(1:NNODE_upper,1:2) = 
-     1  matmul(dNdxi_upper(1:NNODE_upper,1:2),dxidx_upper)
-        determinant_upper=dxdxi_upper(1,1)*dxdxi_upper(2,2)-
-     1  dxdxi_upper(1,2)*dxdxi_upper(2,1)
-        
-        ! since the determinant is volume of the element, I think determinant should be same for one element. For the following
-        ! part, I shall take determinant == determinant_upper
-        
-        ! ==========================================================================================
-        ! =========================================decide B matrix==================================
-        B = 0.d0
-        
-        ! ===first line=== 
-        B(1,1:4*NNODE_upper-3:4) = dNdx(1:NNODE_upper,1)
-        B(1,4*NNODE_upper+1:6*NNODE_upper-1:2) = 
-     1  dNdx(NNODE_upper+1:NNODE,1)
-        
-        ! ===second line===
-        B(2,2:4*NNODE_upper-2:4) = dNdx(1:NNODE_upper,2)
-        B(2,4*NNODE_upper+2:6*NNODE_upper:2) = 
-     1  dNdx(NNODE_upper+1:NNODE,2)
-        
-        ! ===third line===
-        B(3,1:4*NNODE_upper-3:4) = dNdx(1:NNODE_upper,2)
-        B(3,4*NNODE_upper+1:6*NNODE_upper-1:2) = 
-     1  dNdx(NNODE_upper+1:NNODE,2)
-        B(3,2:4*NNODE_upper-2:4) = dNdx(1:NNODE_upper,1)
-        B(3,4*NNODE_upper+2:6*NNODE_upper:2) = 
-     1  dNdx(NNODE_upper+1:NNODE,1)
-        
-        ! ===fourth line===
-        B(4,3:4*NNODE_upper-1:4) = N_upper(1:NNODE_upper)
-        
-        ! ===fifth line===
-        B(5,4:4*NNODE_upper:4) = N_upper(1:NNODE_upper)
-        
-        ! ===sixth line===
-        B(6,3:4*NNODE_upper-1:4) = dNdx_upper(1:NNODE_upper,1)
-        
-        ! ===seventh line===
-        B(7,3:4*NNODE_upper-1:4) = dNdx_upper(1:NNODE_upper,2)
-        
-        ! ===eigth line===
-        B(8,4:4*NNODE_upper:4) = dNdx_upper(1:NNODE_upper,1)
-        
-        ! ===nineth line===
-        B(9,4:4*NNODE_upper:4) = dNdx_upper(1:NNODE_upper,2)
-        
-        ! ==========================================================================================
-        ! ========================================decide sol matrix=================================
-        
-        ! HINTS: NDOFEL = 24 for this problem [24 = 4 * 4 + 4 * 2]
-        sol = 0.d0
-        sol = matmul(B(1:9,1:(4*NNODE_upper+2*NNODE_upper)), 
-     1  U(1:(4*NNODE_upper+2*NNODE_upper)))
-        
-        dsol = 0.d0
-        dsol = matmul(B(1:9,1:(4*NNODE_upper+2*NNODE_upper)), 
-     1  DU(1:(4*NNODE_upper+2*NNODE_upper),1))       
-        
-        ! ==========================================================================================
-        ! =================================decide strain and stress=================================
-        
-        ! Dmatrix :: the last term D(4,5)
-        D(4,5) = -w_energy*(12.d0*sol(5)*sol(5)-12.d0*sol(5)+2.d0)+
-     1  (Dee(1,1)+Dee(1,2)+Dee(1,3)+Dee(2,1)+Dee(2,2)+Dee(2,3)
-     2   +Dee(3,1)+Dee(3,2)+Dee(3,3))*omega*omega/9.d0
-        
-        ! strain_vector
-        strain = 0.d0
-        strain(1) = sol(1) ! represent e11
-        strain(2) = sol(2) ! represent e22
-        strain(3) = 0      ! Plane strain e33 == 0
-        strain(4) = sol(3) ! represent 2*e12
-                                  ! for plain strain problem, e33 == 0
-        
-        ! stress_vector; while 
-        stress = 0.d0
-        stress(1) = 0
-     1  + Dee(1,1)*(strain(1)-omega/3.d0*sol(5))
-     2  + Dee(1,2)*(strain(2)-omega/3.d0*sol(5))
-     3  + Dee(1,3)*(0-omega/3.d0*sol(5))
-     4  + Dee(1,4)*(strain(3))
-        
-        stress(2) = 0
-     1  + Dee(2,1)*(strain(1)-omega/3.d0*sol(5))
-     2  + Dee(2,2)*(strain(2)-omega/3.d0*sol(5))
-     3  + Dee(2,3)*(0-omega/3.d0*sol(5))
-     4  + Dee(2,4)*(strain(3))
-        
-        stress(3) = 0
-     1  + Dee(3,1)*(strain(1)-omega/3.d0*sol(5))
-     2  + Dee(3,2)*(strain(2)-omega/3.d0*sol(5))
-     3  + Dee(3,3)*(0-omega/3.d0*sol(5))
-     4  + Dee(3,4)*(strain(3))
-        
-        stress(4) = Dee(4,4)*strain(4)
-        
-        ! decide q vector
-        q(1) = stress(1)   ! s11
-        q(2) = stress(2)   ! s22
-        q(3) = stress(4)   ! s12
-        q(4) = sol(4)-2.d0*w_energy*sol(5)*
-     1  (sol(5)-1.d0)*(2.d0*sol(5)-1.d0)-
-     2  omega*(stress(1)+stress(2)+stress(3))/3.d0 ! miu-f(c)-omega*(s11+s22)
-        q(5) = dsol(5)/DTIME      ! delta(c)/delta(t)
-        q(6) = -kappa*sol(8)      ! -kappa*partial(c)/partial(x1)
-        q(7) = -kappa*sol(9)      ! -kappa*partial(c)/partial(x2)
-        q(8) = diff*(sol(6)+(theta-1)*dsol(6)) ! diff*(partial(miu)/partial(x1)+(theta-1)*partial(deltamiu)/partial(x1))
-        q(9) = diff*(sol(7)+(theta-1)*dsol(7)) ! diff*(partial(miu)/partial(x2)+(theta-1)*partial(deltamiu)/partial(x2))  
-        
-        ! to store stress in SVARS
-        if (NSVARS>=n_points*4) then   ! Store stress at each integration point (if space was allocated to do so)
-            SVARS(4*kint-3:4*kint) = stress(1:4)
-        endif
-        ! to calculate the residual
-        RHS(1:6*NNODE_upper,1) = RHS(1:6*NNODE_upper,1)
-     1     - matmul(transpose(B(1:9,1:6*NNODE_upper)),q(1:9))*
-     2                                          w(kint)*determinant
-        ! decide k_temp matrix
-        AMATRX(1:6*NNODE_upper,1:6*NNODE_upper) = 
-     1  AMATRX(1:6*NNODE_upper,1:6*NNODE_upper)
-     2  + matmul(transpose(B(1:9,1:6*NNODE_upper)),matmul(D,B(1:9,
-     3                     1:6*NNODE_upper)))*w(kint)*determinant
-
-         ENERGY(2) = ENERGY(2)
-     1   + 0.5D0*dot_product(stress,strain)*w(kint)*determinant   ! Store the elastic strain energy        
-         
-      end do
+      ! To store the state viarable
+      SVARS(1) = axial_force
+      SVARS(2) = shear_force
+      SVARS(3) = bending_moment
       
-      ! This leaves the timestep unchanged (ABAQUS will use its own algorithm to determine DTIME)
-      PNEWDT = 1.d0          
+      ! Unknown
+      PNEWDT = 1.d0          ! This leaves the timestep unchanged (ABAQUS will use its own algorithm to determine DTIME)
+      
       return
       
-      END SUBROUTINE UEL_hm8
+      END SUBROUTINE UEL
 
       subroutine abq_UEL_2D_integrationpoints(n_points, n_nodes, xi, w)
-
+    
       implicit none
       integer, intent(in) :: n_points
       integer, intent(in) :: n_nodes
-
+    
       double precision, intent(out) :: xi(2,*)
       double precision, intent(out) :: w(*)
-
+    
       integer :: i,j,k,n
-
+    
       double precision :: cn,w1,w2,w11,w12,w22
-
+    
     !         Defines integration points and weights for 2D continuum elements
-
+    
       if ( n_points==1 ) then
         if ( n_nodes==4 .or. n_nodes==9 ) then    !     ---   4 or 9 noded quad
             xi(1, 1) = 0.D0
@@ -449,7 +382,7 @@
             xi(2, 4) = 0.2D0
             w(4) = w(2)
         end if
-
+    
       else if ( n_points==7 ) then
         ! Quintic integration for triangle
         xi(1,1) = 1.d0/3.d0
@@ -512,23 +445,23 @@
         w(8) = w12
         w(9) = w11
       end if
-
+    
       return
-
-      end subroutine abq_UEL_2D_integrationpoints
-
+    
+      end subroutine abq_UEL_2D_integrationpoints   
+    
       subroutine abq_UEL_2D_shapefunctions(xi,n_nodes,f,df)
-
+    
       implicit none
       integer, intent(in) :: n_nodes
-
+    
       double precision, intent(in) :: xi(2)
       double precision, intent(out) :: f(*)
       double precision, intent(out) :: df(9,2)
       double precision g1, g2, g3, dg1, dg2, dg3
       double precision h1, h2, h3, dh1, dh2, dh3
       double precision z,dzdp, dzdq
-
+    
             if ( n_nodes==3 ) then        !     SHAPE FUNCTIONS FOR 3 NODED TRIANGLE
                 f(1) = xi(1)
                 f(2) = xi(2)
@@ -563,20 +496,20 @@
                 df(2, 2) = g2*dh1
                 df(3, 2) = g2*dh2
                 df(4, 2) = g1*dh2
-
+    
             else if ( n_nodes==6 ) then
-
+    
                 !     SHAPE FUNCTIONS FOR 6 NODED TRIANGLE
                 !          3
-
+    
                 !       6      5
-
+    
                 !     1    4     2
-
+    
                 !     P = L1
                 !     Q = L2
                 !     Z = 1 - P - Q = L3
-
+    
                 z = 1.D0 - xi(1) - xi(2)
                 f(1) = (2.D0*xi(1) - 1.D0)*xi(1)
                 f(2) = (2.D0*xi(2) - 1.D0)*xi(2)
@@ -598,7 +531,7 @@
                 df(4, 2) = 4.D0*xi(1)
                 df(5, 2) = 4.D0*z + 4.D0*xi(2)*dzdq
                 df(6, 2) = 4.D0*xi(1)*dzdq
-
+    
             else if ( n_nodes==8 ) then
                 !     SHAPE FUNCTIONS FOR 8 NODED SERENDIPITY ELEMENT
                  f(1) = -0.25*(1.-xi(1))*(1.-xi(2))*(1.+xi(1)+xi(2));
@@ -670,25 +603,25 @@
                 df(9,1) = dg3*h3
                 df(9,2) = g3*dh3
             end if
-
+    
       end subroutine abq_UEL_2D_shapefunctions
-
+     
       subroutine abq_UEL_1D_integrationpoints(n_points, n_nodes, xi, w)
-
-
+    
+    
       implicit none
       integer, intent(in) :: n_points
       integer, intent(in) :: n_nodes
-
+    
       double precision, intent(out) :: xi(*)
       double precision, intent(out) :: w(*)
-
+    
       integer :: i,j,k,n
-
+    
       double precision x1D(4), w1D(4)
-
-
-
+    
+    
+    
       select case ( n_points )
         case (2)
             xi(1) = .5773502691896257D+00
@@ -746,19 +679,19 @@
             write(6,*) ' n_points must be between 1 and 6'
             stop
       end select
-
-
-
-
-
-
-
-      end subroutine ABQ_UEL_1D_integrationpoints
-
+    
+    
+    
+    
+    
+    
+    
+      end subroutine ABQ_UEL_1D_integrationpoints  
+    
       subroutine abq_facenodes_2D(nelnodes,face,list,nfacenodes)
-
+    
       implicit none
-
+    
       integer, intent (in)      :: nelnodes
       integer, intent (in)      :: face
       integer, intent (out)     :: list(*)
@@ -768,10 +701,10 @@
     !
       integer :: i3(3)
       integer :: i4(4)
-
+    
       i3(1:3) = [2,3,1]
       i4(1:4) = [2,3,4,1]
-
+    
       if (nelnodes == 3) then
         nfacenodes = 2
         list(1) = face
@@ -797,27 +730,27 @@
         if (face==3) list(1:3) = (/9,7,8/)
         if (face==4) list(1:3) = (/7,1,4/)
       endif
-
+    
       end subroutine abq_facenodes_2d
-
+    
       subroutine abq_inverse_LU(Ain,A_inverse,n)  ! Compute the inverse of an arbitrary matrix by LU decomposition
-
+    
         implicit none
-
+    
         integer, intent(in)  :: n
-
+    
         double precision, intent(in)    :: Ain(n,n)
         double precision, intent(out)   :: A_inverse(n,n)
-
+    
         double precision :: A(n,n), L(n,n), U(n,n), b(n), d(n), x(n)
         double precision :: coeff
         integer :: i, j, k
-
+    
         A(1:n,1:n) = Ain(1:n,1:n)
         L=0.d0
         U=0.d0
         b=0.d0
-
+        
         do k=1, n-1
             do i=k+1,n
                 coeff=a(i,k)/a(k,k)
@@ -825,7 +758,7 @@
                 A(i,k+1:n) = A(i,k+1:n)-coeff*A(k,k+1:n)
             end do
         end do
-
+    
         forall (i=1:n)  L(i,i) = 1.d0
         forall (j=1:n) U(1:j,j) = A(1:j,j)
         do k=1,n
@@ -844,7 +777,6 @@
             A_inverse(1:n,k) = x(1:n)
             b(k)=0.d0
         end do
-
+    
       end subroutine abq_inverse_LU
-
-
+    
